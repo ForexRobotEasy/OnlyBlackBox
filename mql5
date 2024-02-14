@@ -1,0 +1,98 @@
+
+// OnlyBlackBox Trading Robot
+// Developer: Forex Robot Easy Team
+// Website: forexroboteasy.com
+
+// Include necessary libraries and define constants
+#include <Trade\Trade.mqh>
+#include <Timeseries\TimeSeries.mqh>
+#include <Utilities\Array\ArrayInt.mqh>
+#include <Utilities\Array\ArrayDouble.mqh>
+#include <Utilities\Conversion\Conversion.mqh>
+#include <Utilities\DateTime\DateTime.mqh>
+#include <Utilities\Math\Math.mqh>
+
+#define SYMBOL 'US30'
+#define TIMEFRAME PERIOD_H1
+#define RISK_PERCENT 1
+#define TP_PERCENT_1 0.5
+#define TP_PERCENT_2 1
+
+// Initialize trading class and objects
+CTrade trade;
+CTimeSeries series;
+
+// Function to calculate lot size based on risk percentage
+double CalculateLotSize() {
+    double accountBalance = AccountBalance();
+    double riskAmount = accountBalance * RISK_PERCENT / 100;
+    double lotSize = NormalizeDouble(riskAmount / MarketInfo(SYMBOL, MODE_MARGINREQUIRED), MarketInfo(SYMBOL, MODE_DIGITS));
+    return lotSize;
+}
+
+// Function to calculate take profit levels based on partial percentages
+double CalculateTakeProfit1() {
+    double currentPrice = series.Close[1];
+    double takeProfit1 = currentPrice + (currentPrice * TP_PERCENT_1 / 100);
+    return takeProfit1;
+}
+
+double CalculateTakeProfit2() {
+    double currentPrice = series.Close[1];
+    double takeProfit2 = currentPrice + (currentPrice * TP_PERCENT_2 / 100);
+    return takeProfit2;
+}
+
+// Function to open a buy trade
+void OpenBuyTrade(double lotSize, double stopLoss, double takeProfit1, double takeProfit2) {
+    trade.Buy(lotSize, SYMBOL, 0, stopLoss, takeProfit1, takeProfit2, 'Buy Trade');
+}
+
+// Function to open a sell trade
+void OpenSellTrade(double lotSize, double stopLoss, double takeProfit1, double takeProfit2) {
+    trade.Sell(lotSize, SYMBOL, 0, stopLoss, takeProfit1, takeProfit2, 'Sell Trade');
+}
+
+// Function to close all open trades
+void CloseAllTrades() {
+    trade.CloseAll();
+}
+
+// Function to execute trading logic
+void ExecuteTradingLogic() {
+    double lotSize = CalculateLotSize();
+    double stopLoss = 0;
+    double takeProfit1 = CalculateTakeProfit1();
+    double takeProfit2 = CalculateTakeProfit2();
+
+    if (series.Close[1] > series.Open[1]) {
+        OpenBuyTrade(lotSize, stopLoss, takeProfit1, takeProfit2);
+    }
+    else if (series.Close[1] < series.Open[1]) {
+        OpenSellTrade(lotSize, stopLoss, takeProfit1, takeProfit2);
+    }
+}
+
+// Function to initialize the trading robot
+void OnInit() {
+    series.SetSymbol(SYMBOL);
+    series.SetPeriod(TIMEFRAME);
+}
+
+// Function to start the trading robot
+void OnStart() {
+    series.Refresh();
+    ExecuteTradingLogic();
+    CloseAllTrades();
+}
+
+// Function to deinitialize the trading robot
+void OnDeinit(const int reason) {
+    CloseAllTrades();
+}
+
+// Function to handle trading events
+void OnTrade() {
+    ExecuteTradingLogic();
+    CloseAllTrades();
+}
